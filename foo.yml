@@ -1,0 +1,7 @@
+key1: val1
+key2:
+  mapKey: val2
+  mapKey2:
+  - arr
+  - ray
+  mapKey3: 123
