@@ -9,12 +9,12 @@ import qualified Data.Attoparsec.Text as AT
 
 data Operation = Operation { opType :: OperationType, opPath :: OperationPath}
   deriving (Show, Eq)
+
 data OperationType = Remove
                    | Replace { replacement :: Value }
   deriving (Show, Eq)
 
-data OperationPath = OperationPath Text OperationPath
-                   | EndOfPath
+data OperationPath = OperationPath [Text]
   deriving (Show, Eq)
 
 instance FromJSON OperationType where
@@ -44,11 +44,7 @@ segmentParser = do
     AT.takeWhile (/= '/')
 
 pathParser :: AT.Parser OperationPath
-pathParser = do
-  nextChar <- AT.peekChar
-  case nextChar of
-    Just _ -> OperationPath <$> segmentParser <*> pathParser
-    Nothing -> return EndOfPath
+pathParser = OperationPath <$> AT.many1 segmentParser
 
 applyOp :: Value -> Operation -> Value
 applyOp v (Operation t path) =
@@ -63,13 +59,15 @@ removeOp :: Value -> OperationPath -> Value
 removeOp v path = replaceOp v path Null
 
 replaceOp :: Value -> OperationPath -> Value -> Value
-replaceOp v path r =
-  case path of
-    (OperationPath key rem) ->
-      case v of
-        (Object x) -> case replaceOp (x ! key) rem r of
+replaceOp doc (OperationPath path) = replaceOp' doc path
+
+replaceOp' :: Value -> [Text] -> Value -> Value
+replaceOp' doc (key:rem) r =
+      case doc of
+        (Object x) -> case replaceOp' (x ! key) rem r of
                         Null   -> Object $ delete key x
                         newVal -> Object $ insert key newVal x
         _ -> error "foo"
-    _ -> r
+replaceOp' v [] r = r
+
 
