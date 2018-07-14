@@ -11,17 +11,26 @@ data OperationType = Remove
 data OperationPath = OperationPath Text OperationPath
                    | EndOfPath
 
-applyOperation :: Value -> Operation -> Value
-applyOperation v (Operation t path) = case t of
-                                        Remove -> remove v path
-                                        (Replace _) -> v
+applyOp :: Value -> Operation -> Value
+applyOp v (Operation t path) =
+  case t of
+    Remove -> removeOp v path
+    (Replace r) -> replaceOp v path r
 
-remove :: Value -> OperationPath -> Value
-remove v path = case path of
-                  (OperationPath key rem) ->
-                    case v of
-                      (Object x) -> case remove (x ! key) rem of
-                                      Null   -> Object $ delete key x
-                                      newVal -> Object $ insert key newVal x
-                      _ -> error "foo"
-                  _ -> Null
+applyOps :: [Operation] -> Value -> Value
+applyOps os v = Prelude.foldl applyOp v os
+
+removeOp :: Value -> OperationPath -> Value
+removeOp v path = replaceOp v path Null
+
+replaceOp :: Value -> OperationPath -> Value -> Value
+replaceOp v path r =
+  case path of
+    (OperationPath key rem) ->
+      case v of
+        (Object x) -> case replaceOp (x ! key) rem r of
+                        Null   -> Object $ delete key x
+                        newVal -> Object $ insert key newVal x
+        _ -> error "foo"
+    _ -> r
+
