@@ -1,15 +1,54 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Bosh.Operation where
 
 import Data.Text
 import Data.Yaml
 import Data.HashMap.Strict
+import Data.Aeson.Types
+import qualified Data.Attoparsec.Text as AT
 
 data Operation = Operation { opType :: OperationType, opPath :: OperationPath}
+  deriving (Show, Eq)
 data OperationType = Remove
                    | Replace { replacement :: Value }
+  deriving (Show, Eq)
 
 data OperationPath = OperationPath Text OperationPath
                    | EndOfPath
+  deriving (Show, Eq)
+
+instance FromJSON OperationType where
+  parseJSON (Object v) = do
+    typeStr <- v .: "type" :: Parser Text
+    if typeStr == "remove"
+       then return Remove
+       else Replace <$> v .: "value"
+  parseJSON invalid = typeMismatch "OperationType" invalid
+
+instance FromJSON Operation where
+  parseJSON (Object v) = Operation
+                       <$> parseJSON (Object v)
+                       <*> v .: "path"
+  parseJSON invalid = typeMismatch "Operation" invalid
+
+instance FromJSON OperationPath where
+  parseJSON (String s) = case AT.parseOnly pathParser s of
+                           (Right r) -> return r
+                           (Left err) -> fail $ "Parser failed: " ++ err
+
+  parseJSON invalid = typeMismatch "OperationPath" invalid
+
+segmentParser :: AT.Parser Text
+segmentParser = do
+    _ <- AT.char '/'
+    AT.takeWhile (/= '/')
+
+pathParser :: AT.Parser OperationPath
+pathParser = do
+  nextChar <- AT.peekChar
+  case nextChar of
+    Just _ -> OperationPath <$> segmentParser <*> pathParser
+    Nothing -> return EndOfPath
 
 applyOp :: Value -> Operation -> Value
 applyOp v (Operation t path) =

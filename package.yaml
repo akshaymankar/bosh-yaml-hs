@@ -25,6 +25,8 @@ dependencies:
 - bytestring
 - text
 - unordered-containers
+- aeson
+- attoparsec
 
 library:
   source-dirs: src
@@ -50,3 +52,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - bosh-yaml-hs
+    - hspec
+    - hspec-attoparsec

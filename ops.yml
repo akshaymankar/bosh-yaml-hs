@@ -1,0 +1,6 @@
+- type: remove
+  path: /key1
+
+- type: replace
+  path: /key2/mapKey3
+  value: 666
