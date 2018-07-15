@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Bosh.Operation where
 
+import Control.Monad
 import Data.Text
 import Data.Yaml
-import Data.HashMap.Strict
+import Data.HashMap.Strict as Map
 import Data.Aeson.Types
 import qualified Data.Attoparsec.Text as AT
 
@@ -14,7 +15,10 @@ data OperationType = Remove
                    | Replace { replacement :: Value }
   deriving (Show, Eq)
 
-data OperationPath = OperationPath [Text]
+newtype OperationPath = OperationPath [Text]
+  deriving (Show, Eq)
+
+data OperationErr = OperationErr
   deriving (Show, Eq)
 
 instance FromJSON OperationType where
@@ -46,28 +50,31 @@ segmentParser = do
 pathParser :: AT.Parser OperationPath
 pathParser = OperationPath <$> AT.many1 segmentParser
 
-applyOp :: Value -> Operation -> Value
+applyOp :: Value -> Operation -> Either OperationErr Value
 applyOp v (Operation t path) =
   case t of
     Remove -> removeOp v path
     (Replace r) -> replaceOp v path r
 
-applyOps :: [Operation] -> Value -> Value
-applyOps os v = Prelude.foldl applyOp v os
+applyOps :: [Operation] -> Value -> Either OperationErr Value
+applyOps os v = foldM applyOp v os
 
-removeOp :: Value -> OperationPath -> Value
+removeOp :: Value -> OperationPath -> Either OperationErr Value
 removeOp v path = replaceOp v path Null
 
-replaceOp :: Value -> OperationPath -> Value -> Value
-replaceOp doc (OperationPath path) = replaceOp' doc path
+replaceOp :: Value -> OperationPath -> Value -> Either OperationErr Value
+replaceOp doc (OperationPath path) r = replaceOp' doc r path
 
-replaceOp' :: Value -> [Text] -> Value -> Value
-replaceOp' doc (key:rem) r =
+replaceOp' :: Value -> Value -> [Text] -> Either OperationErr Value
+replaceOp' doc r (key:rem) =
       case doc of
-        (Object x) -> case replaceOp' (x ! key) rem r of
-                        Null   -> Object $ delete key x
-                        newVal -> Object $ insert key newVal x
-        _ -> error "foo"
-replaceOp' v [] r = r
-
-
+        (Object x) ->
+            case Map.lookup key x of
+              Just tree -> do
+                newTree <- replaceOp' (x ! key) r rem
+                case  newTree of
+                  Null   -> return $ Object $ delete key x
+                  newVal -> return $ Object $ insert key newVal x
+              Nothing -> Left OperationErr
+        _ -> Left OperationErr
+replaceOp' v r [] = return r
