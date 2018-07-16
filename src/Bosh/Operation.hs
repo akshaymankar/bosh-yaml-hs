@@ -2,6 +2,7 @@
 module Bosh.Operation where
 
 import Control.Monad
+import Data.Functor
 import Data.Text
 import Data.Yaml
 import Data.HashMap.Strict as Map
@@ -15,7 +16,10 @@ data OperationType = Remove
                    | Replace { replacement :: Value }
   deriving (Show, Eq)
 
-newtype OperationPath = OperationPath [Text]
+newtype OperationPath = OperationPath [PathSegment]
+  deriving (Show, Eq)
+
+data PathSegment = PathSegment { segment :: Text, isOptional :: Bool }
   deriving (Show, Eq)
 
 data OperationErr = OperationErr
@@ -42,10 +46,12 @@ instance FromJSON OperationPath where
 
   parseJSON invalid = typeMismatch "OperationPath" invalid
 
-segmentParser :: AT.Parser Text
+segmentParser :: AT.Parser PathSegment
 segmentParser = do
     _ <- AT.char '/'
-    AT.takeWhile (/= '/')
+    PathSegment
+      <$> AT.takeWhile (AT.notInClass "/?")
+      <*> AT.choice [AT.char '?' $> True, pure False]
 
 pathParser :: AT.Parser OperationPath
 pathParser = OperationPath <$> AT.many1 segmentParser
@@ -65,16 +71,33 @@ removeOp v path = replaceOp v path Null
 replaceOp :: Value -> OperationPath -> Value -> Either OperationErr Value
 replaceOp doc (OperationPath path) r = replaceOp' doc r path
 
-replaceOp' :: Value -> Value -> [Text] -> Either OperationErr Value
-replaceOp' doc r (key:rem) =
+replaceOp' :: Value -> Value -> [PathSegment] -> Either OperationErr Value
+replaceOp' doc r path@(seg:rem) = do
+      let key = segment seg
       case doc of
-        (Object x) ->
-            case Map.lookup key x of
-              Just tree -> do
-                newTree <- replaceOp' (x ! key) r rem
-                case  newTree of
-                  Null   -> return $ Object $ delete key x
-                  newVal -> return $ Object $ insert key newVal x
-              Nothing -> Left OperationErr
+        (Object o) ->
+            if member key o
+               then replaceOpKeyPresent o r key rem
+               else replaceOpKeyAbsent o r path
         _ -> Left OperationErr
 replaceOp' v r [] = return r
+
+
+replaceOpKeyPresent o r key rem = do
+  newTree <- replaceOp' (o ! key) r rem
+  case  newTree of
+    Null   -> return $ Object $ delete key o
+    newVal -> return $ Object $ insert key newVal o
+
+replaceOpKeyAbsent :: HashMap Text Value -> Value -> [PathSegment] -> Either OperationErr Value
+replaceOpKeyAbsent o r path@(seg:rem) =
+  if isOptional seg
+    then
+      if r == Null
+         then return (Object o)
+         else return $ createObject r path
+    else Left OperationErr
+
+createObject :: Value -> [PathSegment] -> Value
+createObject v (p:ps) = Object $ Map.singleton (segment p) $ createObject v ps
+createObject v [] = v
