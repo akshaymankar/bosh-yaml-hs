@@ -54,7 +54,16 @@ segmentParser = do
       <*> AT.choice [AT.char '?' $> True, pure False]
 
 pathParser :: AT.Parser OperationPath
-pathParser = OperationPath <$> AT.many1 segmentParser
+pathParser = do
+  segs <- AT.many1 segmentParser
+  return $ OperationPath $ propagateOptionality segs False
+
+propagateOptionality :: [PathSegment] -> Bool -> [PathSegment]
+propagateOptionality [] _ = []
+propagateOptionality (p:ps) True  = p{isOptional=True}:propagateOptionality ps True
+propagateOptionality (p:ps) False = if isOptional p
+                                       then p:propagateOptionality ps True
+                                       else p:propagateOptionality ps False
 
 applyOp :: Value -> Operation -> Either OperationErr Value
 applyOp v (Operation t path) =
@@ -81,7 +90,6 @@ replaceOp' doc r path@(seg:rem) = do
                else replaceOpKeyAbsent o r path
         _ -> Left OperationErr
 replaceOp' v r [] = return r
-
 
 replaceOpKeyPresent o r key rem = do
   newTree <- replaceOp' (o ! key) r rem

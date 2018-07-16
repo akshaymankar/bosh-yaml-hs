@@ -34,6 +34,13 @@ spec = do
       it "should parse a path with many segments" $ do
         ("/key/key2" :: Text) ~> pathParser `shouldParse` OperationPath [mandatorySegment "key", mandatorySegment "key2"]
 
+      it "should apply optionality to all segments after first optional segment" $ do
+        ("/key/key2?/key3/key4" :: Text) ~> pathParser `shouldParse` OperationPath [ mandatorySegment "key"
+                                                                                   , optionalSegment "key2"
+                                                                                   , optionalSegment "key3"
+                                                                                   , optionalSegment "key4"
+                                                                                   ]
+
     context "FromJSON" $ do
       it "should be able to parse JSON string" $ do
         case decodeEither' "/key/key2" of
