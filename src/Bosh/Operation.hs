@@ -8,6 +8,7 @@ import Data.Yaml
 import Data.HashMap.Strict as Map
 import Data.Aeson.Types
 import qualified Data.Attoparsec.Text as AT
+import qualified Data.Vector as V
 
 data Operation = Operation { opType :: OperationType, opPath :: OperationPath}
   deriving (Show, Eq)
@@ -19,7 +20,12 @@ data OperationType = Remove
 newtype OperationPath = OperationPath [PathSegment]
   deriving (Show, Eq)
 
-data PathSegment = PathSegment { segment :: Text, isOptional :: Bool }
+data ArrayIndex = NumIndex Int
+                | LastIndex
+  deriving (Show, Eq)
+
+data PathSegment = MapSegment { segment :: Text, isOptional :: Bool }
+                 | ArraySegment { index :: ArrayIndex}
   deriving (Show, Eq)
 
 data OperationErr = OperationErr
@@ -46,12 +52,21 @@ instance FromJSON OperationPath where
 
   parseJSON invalid = typeMismatch "OperationPath" invalid
 
+arraySegmentParser :: AT.Parser PathSegment
+arraySegmentParser = do
+  _ <- AT.char '-'
+  return $ ArraySegment LastIndex
+
+mapSegmentParser :: AT.Parser PathSegment
+mapSegmentParser = MapSegment
+                    <$> AT.takeWhile1 (AT.notInClass "/?-")
+                    <*> AT.choice [AT.char '?' $> True, pure False]
+
 segmentParser :: AT.Parser PathSegment
 segmentParser = do
     _ <- AT.char '/'
-    PathSegment
-      <$> AT.takeWhile (AT.notInClass "/?")
-      <*> AT.choice [AT.char '?' $> True, pure False]
+    AT.choice [arraySegmentParser, mapSegmentParser]
+
 
 pathParser :: AT.Parser OperationPath
 pathParser = do
@@ -59,11 +74,12 @@ pathParser = do
   return $ OperationPath $ propagateOptionality segs False
 
 propagateOptionality :: [PathSegment] -> Bool -> [PathSegment]
-propagateOptionality [] _ = []
-propagateOptionality (p:ps) True  = p{isOptional=True}:propagateOptionality ps True
-propagateOptionality (p:ps) False = if isOptional p
-                                       then p:propagateOptionality ps True
-                                       else p:propagateOptionality ps False
+propagateOptionality [] _                            = []
+propagateOptionality (p@(ArraySegment _):ps)   b     = p:propagateOptionality ps b
+propagateOptionality (p@(MapSegment _ _):ps)   True  = p{isOptional=True}:propagateOptionality ps True
+propagateOptionality (p@(MapSegment _ opt):ps) False = if opt
+                                                          then p:propagateOptionality ps True
+                                                          else p:propagateOptionality ps False
 
 applyOp :: Value -> Operation -> Either OperationErr Value
 applyOp v (Operation t path) =
@@ -81,15 +97,13 @@ replaceOp :: Value -> OperationPath -> Value -> Either OperationErr Value
 replaceOp doc (OperationPath path) r = replaceOp' doc r path
 
 replaceOp' :: Value -> Value -> [PathSegment] -> Either OperationErr Value
-replaceOp' doc r path@(seg:rem) = do
-      let key = segment seg
-      case doc of
-        (Object o) ->
-            if member key o
-               then replaceOpKeyPresent o r key rem
-               else replaceOpKeyAbsent o r path
-        _ -> Left OperationErr
-replaceOp' v r [] = return r
+replaceOp' _ r [] = return r
+replaceOp' (Object o) r path@(seg@(MapSegment key _):rem) =
+  if member key o
+     then replaceOpKeyPresent o r key rem
+     else replaceOpKeyAbsent o r path
+replaceOp' (Array a) r path@(seg@(ArraySegment LastIndex):rem) = return $ Array $ V.snoc a r
+replaceOp' _ _ (seg@(MapSegment _ _):_) = Left OperationErr
 
 replaceOpKeyPresent o r key rem = do
   newTree <- replaceOp' (o ! key) r rem

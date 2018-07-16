@@ -4,3 +4,7 @@
 - type: replace
   path: /key2/mapKey3
   value: 666
+
+- type: replace
+  path: /key2/mapKey2/-
+  value: lala

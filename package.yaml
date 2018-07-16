@@ -27,6 +27,7 @@ dependencies:
 - unordered-containers
 - aeson
 - attoparsec
+- vector
 
 library:
   source-dirs: src

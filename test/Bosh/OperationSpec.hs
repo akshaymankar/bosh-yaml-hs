@@ -8,24 +8,28 @@ import Data.Text
 import Bosh.Operation
 import Data.Yaml
 import Data.HashMap.Strict as H
+import Data.Vector as V hiding ((++))
 
 {-# ANN module ("HLint: ignore Redundant do"::String) #-}
 
 mandatorySegment :: Text -> PathSegment
-mandatorySegment = flip PathSegment False
+mandatorySegment = flip MapSegment False
 
 optionalSegment :: Text -> PathSegment
-optionalSegment = flip PathSegment True
+optionalSegment = flip MapSegment True
 
 spec :: Spec
 spec = do
   describe "OperationPath" $ do
     context "segmentParser" $ do
-      it "should parse a pathSegment" $ do
+      it "should parse a mandatory map segment" $ do
         ("/key" :: Text) ~> segmentParser `shouldParse` mandatorySegment "key"
 
-      it "should parse an optional pathSegment" $ do
+      it "should parse an optional map segment" $ do
         ("/key?" :: Text) ~> segmentParser `shouldParse` optionalSegment "key"
+
+      it "should parse last index array segment" $ do
+        ("/-" :: Text) ~> segmentParser `shouldParse` ArraySegment LastIndex
 
     context "pathParser" $ do
       it "should parse a path with 1 segment" $ do
@@ -40,6 +44,12 @@ spec = do
                                                                                    , optionalSegment "key3"
                                                                                    , optionalSegment "key4"
                                                                                    ]
+      it "should apply optionality to all segments except array segments after first optional segment" $ do
+        ("/key/key2?/-/key4" :: Text) ~> pathParser `shouldParse` OperationPath [ mandatorySegment "key"
+                                                                                , optionalSegment "key2"
+                                                                                , ArraySegment LastIndex
+                                                                                , optionalSegment "key4"
+                                                                                ]
 
     context "FromJSON" $ do
       it "should be able to parse JSON string" $ do
@@ -55,8 +65,8 @@ spec = do
 
     it "should delete a given key" $ do
       let op = Operation Remove (OperationPath [mandatorySegment "key1"])
-          doc = Object $ fromList [("key1", "val"), ("key2", "val2")]
-      applyOp doc op `shouldBe` Right (Object $ fromList [("key2", "val2")])
+          doc = Object $ H.fromList [("key1", "val"), ("key2", "val2")]
+      applyOp doc op `shouldBe` Right (Object $ H.fromList [("key2", "val2")])
 
     it "should not replace a mandatory non existent key" $ do
       let op = Operation (Replace "val2") (OperationPath [mandatorySegment "key2"])
@@ -82,3 +92,8 @@ spec = do
       let op = Operation Remove (OperationPath [optionalSegment "key2"])
           doc = Object $ H.fromList [("key1", String "val1")]
       applyOp doc op `shouldBe` Right (Object $ H.fromList [("key1", String "val1")])
+
+    it "should add an element at the end of an array" $ do
+      let op = Operation (Replace "elem2") (OperationPath [ArraySegment LastIndex])
+          doc = Array $ V.fromList ["elem1"]
+      applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem1", "elem2"])
