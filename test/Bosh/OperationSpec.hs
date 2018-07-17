@@ -31,6 +31,9 @@ spec = do
       it "should parse last index array segment" $ do
         ("/-" :: Text) ~> segmentParser `shouldParse` ArraySegment LastIndex
 
+      it "should parse numerical index array segment" $ do
+        ("/1" :: Text) ~> segmentParser `shouldParse` ArraySegment (NumIndex 1)
+
     context "pathParser" $ do
       it "should parse a path with 1 segment" $ do
         ("/key" :: Text) ~> pathParser `shouldParse` OperationPath [mandatorySegment "key"]
@@ -97,3 +100,13 @@ spec = do
       let op = Operation (Replace "elem2") (OperationPath [ArraySegment LastIndex])
           doc = Array $ V.fromList ["elem1"]
       applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem1", "elem2"])
+
+    it "should replace an element at the given index in an array" $ do
+      let op = Operation (Replace "new-elem2") (OperationPath [ArraySegment $ NumIndex 1])
+          doc = Array $ V.fromList ["elem1", "elem2"]
+      applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem1", "new-elem2"])
+
+    it "should remove an element at the given index in an array" $ do
+      let op = Operation Remove (OperationPath [ArraySegment $ NumIndex 1])
+          doc = Array $ V.fromList ["elem1", "elem2"]
+      applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem1"])

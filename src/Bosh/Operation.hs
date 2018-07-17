@@ -53,9 +53,9 @@ instance FromJSON OperationPath where
   parseJSON invalid = typeMismatch "OperationPath" invalid
 
 arraySegmentParser :: AT.Parser PathSegment
-arraySegmentParser = do
-  _ <- AT.char '-'
-  return $ ArraySegment LastIndex
+arraySegmentParser =
+  AT.choice [ ArraySegment . NumIndex <$> AT.decimal
+            , AT.char '-' $> ArraySegment LastIndex]
 
 mapSegmentParser :: AT.Parser PathSegment
 mapSegmentParser = MapSegment
@@ -102,8 +102,13 @@ replaceOp' (Object o) r path@(seg@(MapSegment key _):rem) =
   if member key o
      then replaceOpKeyPresent o r key rem
      else replaceOpKeyAbsent o r path
-replaceOp' (Array a) r path@(seg@(ArraySegment LastIndex):rem) = return $ Array $ V.snoc a r
+replaceOp' (Array a) r    path@(seg@(ArraySegment LastIndex):rem)    = return $ Array $ V.snoc a r
+replaceOp' (Array a) Null path@(seg@(ArraySegment (NumIndex i)):rem) = return $ Array $ deleteNth i a
+replaceOp' (Array a) r    path@(seg@(ArraySegment (NumIndex i)):rem) = return $ Array $ V.update a (V.fromList [(i, r)])
 replaceOp' _ _ (seg@(MapSegment _ _):_) = Left OperationErr
+
+deleteNth :: Int -> V.Vector a -> V.Vector a
+deleteNth n v = let (ys,zs) = V.splitAt n v in V.concat [ys, V.tail zs]
 
 replaceOpKeyPresent o r key rem = do
   newTree <- replaceOp' (o ! key) r rem
