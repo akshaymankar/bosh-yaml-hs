@@ -37,6 +37,13 @@ indexModifierParser = do
   _ <- assertPeek '/'
   return $ n + change
 
+beforeIndexParser :: AT.Parser Int
+beforeIndexParser = do
+  n <- AT.decimal
+  change <- (0 <$ AT.string ":before") <|> (1 <$ AT.string ":after")
+  _ <- assertPeek '/'
+  return $ n + change
+
 assertPeek :: Char -> AT.Parser ()
 assertPeek c = do
   maybeChar <- AT.peekChar
@@ -49,6 +56,7 @@ assertPeek c = do
 arraySegmentParser :: AT.Parser PathSegment
 arraySegmentParser =
   AT.choice [ ArraySegment . NumIndex <$> indexModifierParser
+            , ArraySegment . BeforeIndex <$> beforeIndexParser
             , ArraySegment . NumIndex <$> (AT.decimal <* assertPeek '/')
             , AT.char '-' $> ArraySegment LastIndex]
 

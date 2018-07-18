@@ -46,6 +46,13 @@ spec = do
       it "should parse numerical index with :next in an array segment" $ do
         ("/2:next" :: Text) ~> segmentParser `shouldParse` ArraySegment (NumIndex 3)
 
+      it "should parse numerical index with :before in an array segment" $ do
+        ("/2:before" :: Text) ~> segmentParser `shouldParse` ArraySegment (BeforeIndex 2)
+        ("/0:before" :: Text) ~> segmentParser `shouldParse` ArraySegment (BeforeIndex 0)
+
+      it "should parse numerical index with :after in an array segment" $ do
+        ("/2:after" :: Text) ~> segmentParser `shouldParse` ArraySegment (BeforeIndex 3)
+
       it "should parse some weird cases as map segment" $ do
         -- This is not how bosh-cli works
         ("/2:prevlol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "2:prevlol"
@@ -130,3 +137,25 @@ spec = do
       let op = Operation Remove (OperationPath [ArraySegment $ NumIndex 1])
           doc = Array $ V.fromList ["elem1", "elem2"]
       applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem1"])
+
+    it "should insert an element before a given index in an array" $ do
+      let op = Operation (Replace "elem1.5") (OperationPath [ArraySegment $ BeforeIndex 1])
+          doc = Array $ V.fromList ["elem1", "elem2"]
+      applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem1", "elem1.5", "elem2"])
+
+    it "should insert an element before index 0 in an array" $ do
+      let op = Operation (Replace "elem0.5") (OperationPath [ArraySegment $ BeforeIndex 0])
+          doc = Array $ V.fromList ["elem1", "elem2"]
+      applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem0.5", "elem1", "elem2"])
+
+    it "should insert an element before the last index+1 in an array" $ do
+      let op = Operation (Replace "elem2.5") (OperationPath [ArraySegment $ BeforeIndex 3])
+          doc = Array $ V.fromList ["elem1", "elem2"]
+      applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem1", "elem2", "elem2.5"])
+
+    -- This case is not handled
+    xit "should not insert an element before the last index+1+n in an array" $ do
+      let op = Operation (Replace "elem3.5") (OperationPath [ArraySegment $ BeforeIndex 4])
+          doc = Array $ V.fromList ["elem1", "elem2"]
+      applyOp doc op `shouldBe` Left OperationErr
+

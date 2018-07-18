@@ -32,13 +32,20 @@ replaceOp' (Object o) r path@(seg@(MapSegment key _):rem) =
   if member key o
      then replaceOpKeyPresent o r key rem
      else replaceOpKeyAbsent o r path
+
 replaceOp' (Array a) r    path@(seg@(ArraySegment LastIndex):rem)    = return $ Array $ V.snoc a r
 replaceOp' (Array a) Null path@(seg@(ArraySegment (NumIndex i)):rem) = return $ Array $ deleteNth i a
 replaceOp' (Array a) r    path@(seg@(ArraySegment (NumIndex i)):rem) = return $ Array $ V.update a (V.fromList [(i, r)])
+
+replaceOp' (Array a) r    path@(seg@(ArraySegment (BeforeIndex i)):rem) = return $ Array $ insertAt i r a
+
 replaceOp' _ _ (_:_) = Left OperationErr
 
 deleteNth :: Int -> V.Vector a -> V.Vector a
-deleteNth n v = let (ys,zs) = V.splitAt n v in V.concat [ys, V.tail zs]
+deleteNth n xs = let (ys,zs) = V.splitAt n xs in V.concat [ys, V.tail zs]
+
+insertAt :: Int -> a -> V.Vector a -> V.Vector a
+insertAt n x xs = let (ys, zs) = V.splitAt n xs in V.concat [ys, V.fromList [x], zs]
 
 replaceOpKeyPresent o r key rem = do
   newTree <- replaceOp' (o ! key) r rem
