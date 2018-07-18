@@ -2,6 +2,7 @@
 module Bosh.Parsers where
 
 import Bosh.Types
+import Control.Applicative
 import Data.Aeson.Types
 import Data.Functor
 import Data.Text
@@ -29,14 +30,31 @@ instance FromJSON OperationPath where
 
   parseJSON invalid = typeMismatch "OperationPath" invalid
 
+indexModifierParser :: AT.Parser Int
+indexModifierParser = do
+  n <- AT.decimal
+  change <- (-1 <$ AT.string ":prev") <|> (1 <$ AT.string ":next")
+  _ <- assertPeek '/'
+  return $ n + change
+
+assertPeek :: Char -> AT.Parser ()
+assertPeek c = do
+  maybeChar <- AT.peekChar
+  case maybeChar of
+    Just x -> if x == c
+                 then return ()
+                 else fail $ "Expected to find " ++ [c]
+    Nothing -> return ()
+
 arraySegmentParser :: AT.Parser PathSegment
 arraySegmentParser =
-  AT.choice [ ArraySegment . NumIndex <$> AT.decimal
+  AT.choice [ ArraySegment . NumIndex <$> indexModifierParser
+            , ArraySegment . NumIndex <$> (AT.decimal <* assertPeek '/')
             , AT.char '-' $> ArraySegment LastIndex]
 
 mapSegmentParser :: AT.Parser PathSegment
 mapSegmentParser = MapSegment
-                    <$> AT.takeWhile1 (AT.notInClass "/?-")
+                    <$> AT.takeWhile1 (AT.notInClass "/?")
                     <*> AT.choice [AT.char '?' $> True, pure False]
 
 segmentParser :: AT.Parser PathSegment

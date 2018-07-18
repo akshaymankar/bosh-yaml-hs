@@ -28,6 +28,9 @@ spec = do
       it "should parse a mandatory map segment" $ do
         ("/key" :: Text) ~> segmentParser `shouldParse` mandatorySegment "key"
 
+      it "should parse a map segment with - in the key name" $ do
+        ("/key-name" :: Text) ~> segmentParser `shouldParse` mandatorySegment "key-name"
+
       it "should parse an optional map segment" $ do
         ("/key?" :: Text) ~> segmentParser `shouldParse` optionalSegment "key"
 
@@ -36,6 +39,20 @@ spec = do
 
       it "should parse numerical index array segment" $ do
         ("/1" :: Text) ~> segmentParser `shouldParse` ArraySegment (NumIndex 1)
+
+      it "should parse numerical index with :prev in an array segment" $ do
+        ("/2:prev" :: Text) ~> segmentParser `shouldParse` ArraySegment (NumIndex 1)
+
+      it "should parse numerical index with :next in an array segment" $ do
+        ("/2:next" :: Text) ~> segmentParser `shouldParse` ArraySegment (NumIndex 3)
+
+      it "should parse some weird cases as map segment" $ do
+        -- This is not how bosh-cli works
+        ("/2:prevlol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "2:prevlol"
+        -- This is how bosh-cli works
+        ("/2prevlol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "2prevlol"
+        -- This case is not handled because it sounds tiring
+        -- ("/2prev?lol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "2prev?lol"
 
     context "pathParser" $ do
       it "should parse a path with 1 segment" $ do
