@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import Bosh.Operation
+import Bosh.Types
+import Bosh.Parsers
 import Bosh.Yaml
 import Data.Yaml
-import Bosh.Operation
 
 import qualified Data.ByteString.Char8 as B
 

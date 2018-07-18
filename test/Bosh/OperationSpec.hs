@@ -3,12 +3,15 @@ module Bosh.OperationSpec where
 
 import Test.Hspec
 import Test.Hspec.Attoparsec
-import Data.Either
-import Data.Text
+
 import Bosh.Operation
-import Data.Yaml
+import Bosh.Parsers
+import Bosh.Types
+import Data.Either
 import Data.HashMap.Strict as H
-import Data.Vector as V hiding ((++))
+import Data.Text
+import Data.Vector         as V hiding ((++))
+import Data.Yaml
 
 {-# ANN module ("HLint: ignore Redundant do"::String) #-}
 
