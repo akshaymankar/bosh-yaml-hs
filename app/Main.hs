@@ -2,8 +2,8 @@
 module Main where
 
 import Bosh.Operation
-import Bosh.Types
-import Bosh.Parsers
+import Bosh.Operation.Parsers
+import Bosh.Operation.Types
 import Bosh.Yaml
 import Data.Yaml
 

@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Bosh.Parsers where
+module Bosh.Operation.Parsers where
 
-import Bosh.Types
+import Bosh.Operation.Types
 import Control.Applicative
 import Data.Aeson.Types
 import Data.Functor

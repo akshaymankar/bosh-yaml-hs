@@ -1,4 +1,4 @@
-module Bosh.Types where
+module Bosh.Operation.Types where
 
 import Data.Text
 import Data.Yaml
@@ -25,5 +25,8 @@ data PathSegment = MapSegment { segment :: Text, isOptional :: Bool }
 data OperationErr = OperationErr
   deriving (Show, Eq)
 
-data BoshErr = YamlErr ParseException
-             | OpErr OperationErr
+mandatorySegment :: Text -> PathSegment
+mandatorySegment = flip MapSegment False
+
+optionalSegment :: Text -> PathSegment
+optionalSegment = flip MapSegment True

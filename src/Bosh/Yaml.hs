@@ -2,7 +2,10 @@ module Bosh.Yaml where
 
 import Data.Yaml
 import Bosh.Operation
-import Bosh.Types
+import Bosh.Operation.Types
+
+data BoshErr = YamlErr ParseException
+             | OpErr OperationErr
 
 wrapParseException :: Either ParseException Value -> Either BoshErr Value
 wrapParseException (Left l) = Left $ YamlErr l

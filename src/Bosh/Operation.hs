@@ -1,6 +1,6 @@
 module Bosh.Operation where
 
-import Bosh.Types
+import Bosh.Operation.Types
 import Control.Monad
 import Data.Aeson.Types
 import Data.Functor
