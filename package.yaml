@@ -28,6 +28,7 @@ dependencies:
 - aeson
 - attoparsec
 - vector
+- scientific
 
 library:
   source-dirs: src
