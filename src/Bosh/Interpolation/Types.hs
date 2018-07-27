@@ -6,9 +6,8 @@ import Data.HashMap.Strict
 import Data.Text
 import Data.Yaml
 
-type Variable = Text
-
 type Leaf = (OperationPath, LeafValue)
+type InterpolLeaf = (OperationPath, InterpolExpr)
 
 data LeafValue = StringValue InterpolExpr
                | NumValue Scientific
@@ -21,4 +20,5 @@ data InterpolExpr = IEVar Text InterpolExpr
                   | End
   deriving (Show, Eq)
 
-data Interpol = Interpol { value :: Value, replacements :: HashMap OperationPath Variable }
+data Interpol = Interpol { value :: Value, pathMap :: HashMap OperationPath InterpolExpr }
+  deriving (Show, Eq)

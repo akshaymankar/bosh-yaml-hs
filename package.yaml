@@ -20,15 +20,16 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/akshaymankar/bosh-yaml-hs#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- yaml
-- bytestring
-- text
-- unordered-containers
 - aeson
 - attoparsec
-- vector
+- base >= 4.7 && < 5
+- bytestring
+- hashable
 - scientific
+- text
+- unordered-containers
+- vector
+- yaml
 
 library:
   source-dirs: src
