@@ -4,4 +4,9 @@ key2:
   mapKey2:
   - arr
   - ray
+  - So((this))works
+  - ((also))
+  - this
+  - wo((rk))s
+  - it gets ((ignored)) if you don't provide it
   mapKey3: 123
