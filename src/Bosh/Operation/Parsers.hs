@@ -30,19 +30,30 @@ instance FromJSON OperationPath where
 
   parseJSON invalid = typeMismatch "OperationPath" invalid
 
-indexModifierParser :: AT.Parser Int
+indexModifierParser :: AT.Parser ArrayIndex
 indexModifierParser = do
   n <- AT.decimal
   change <- (-1 <$ AT.string ":prev") <|> (1 <$ AT.string ":next")
-  _ <- assertPeek '/'
-  return $ n + change
+  return $ NumIndex $ n + change
 
-beforeIndexParser :: AT.Parser Int
+beforeIndexParser :: AT.Parser ArrayIndex
 beforeIndexParser = do
   n <- AT.decimal
   change <- (0 <$ AT.string ":before") <|> (1 <$ AT.string ":after")
-  _ <- assertPeek '/'
-  return $ n + change
+  return $ BeforeIndex $ n + change
+
+mapMatcherParser :: AT.Parser ArrayIndex
+mapMatcherParser = do
+  key <- AT.takeWhile1 (AT.notInClass "=/")
+  _ <- AT.char '='
+  value <- AT.takeWhile1 (AT.notInClass "/")
+  return $ MapMatcher key value
+
+simpleIndexMatcher :: AT.Parser ArrayIndex
+simpleIndexMatcher = NumIndex <$> AT.decimal
+
+lastIndexMatcher :: AT.Parser ArrayIndex
+lastIndexMatcher = AT.char '-' $> LastIndex
 
 assertPeek :: Char -> AT.Parser ()
 assertPeek c = do
@@ -55,10 +66,11 @@ assertPeek c = do
 
 arraySegmentParser :: AT.Parser PathSegment
 arraySegmentParser =
-  AT.choice [ ArraySegment . NumIndex <$> indexModifierParser
-            , ArraySegment . BeforeIndex <$> beforeIndexParser
-            , ArraySegment . NumIndex <$> (AT.decimal <* assertPeek '/')
-            , AT.char '-' $> ArraySegment LastIndex]
+  ArraySegment <$> (AT.choice [ indexModifierParser
+                             , beforeIndexParser
+                             , simpleIndexMatcher
+                             , mapMatcherParser
+                             , lastIndexMatcher] <* assertPeek '/')
 
 mapSegmentParser :: AT.Parser PathSegment
 mapSegmentParser = MapSegment

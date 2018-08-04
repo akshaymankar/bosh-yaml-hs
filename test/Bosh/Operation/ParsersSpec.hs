@@ -49,8 +49,12 @@ spec = do
         ("/2:prevlol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "2:prevlol"
         -- This is how bosh-cli works
         ("/2prevlol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "2prevlol"
+        ("/-lol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "-lol"
         -- This case is not handled because it sounds tiring
         -- ("/2prev?lol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "2prev?lol"
+
+      it "should parse MapMatcher in an array segment" $ do
+        ("/name=foo" :: Text) ~> segmentParser `shouldParse` ArraySegment (MapMatcher "name" "foo")
 
     context "pathParser" $ do
       it "should parse a path with 1 segment" $ do
