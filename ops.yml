@@ -8,3 +8,7 @@
 - type: replace
   path: /key2/mapKey2/-
   value: lala
+
+- type: replace
+  path: /key2/weirdArr/name=map-elem1/colour
+  value: green

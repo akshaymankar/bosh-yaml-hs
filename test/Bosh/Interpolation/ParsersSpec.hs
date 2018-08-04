@@ -9,6 +9,8 @@ import Bosh.Interpolation.Parsers
 import Bosh.Interpolation.Types
 import Data.Text
 
+{-# ANN module ("HLint: ignore Redundant do"::String) #-}
+
 spec :: Spec
 spec = do
   describe "Interpolation Parsers" $ do

@@ -10,3 +10,11 @@ key2:
   - wo((rk))s
   - it gets ((ignored)) if you don't provide it
   mapKey3: 123
+  weirdArr:
+  - mapElem: This is map
+    name: map-elem1
+    colour: red
+  - mapElem: This is also map
+    name: map-elem2
+    colour: gold
+  - non-map-elem1
