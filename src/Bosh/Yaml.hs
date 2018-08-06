@@ -10,6 +10,7 @@ import Data.Yaml
 
 data BoshErr = YamlErr ParseException
              | OpErr OperationErr
+  deriving (Show)
 
 wrapParseException :: Either ParseException Value -> Either BoshErr Value
 wrapParseException (Left l) = Left $ YamlErr l

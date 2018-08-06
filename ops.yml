@@ -12,3 +12,10 @@
 - type: replace
   path: /key2/weirdArr/name=map-elem1/colour
   value: green
+
+- type: replace
+  path: /key2/weirdArr/-
+  value:
+    mapElem: This is added by ops
+    name: map-elem3
+    colour: invisible

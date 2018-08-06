@@ -30,12 +30,17 @@ spec = do
     it "should not replace a mandatory non existent key" $ do
       let op = Operation (Replace "val2") (OperationPath [mandatorySegment "key2"])
           doc = Object H.empty
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (MandatoryKeyNotFound "key2" doc)
 
     it "should not replace when types don't match" $ do
       let op = Operation (Replace "val2") (OperationPath [mandatorySegment "key1", mandatorySegment "key1-1"])
           doc = Object $ H.singleton "key1" "val1"
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (TypeMismatch (mandatorySegment "key1-1") "val1")
+
+    it "should not replace when types don't match" $ do
+      let op = Operation (Replace "val2") (OperationPath [ArraySegment $ NumIndex 0])
+          doc = Object $ H.singleton "key1" "val1"
+      applyOp doc op `shouldBe` Left (TypeMismatch (ArraySegment $ NumIndex 0) doc)
 
     it "should replace an optional non existent key" $ do
       let op = Operation (Replace "val2") (OperationPath [optionalSegment "key2"])
@@ -65,7 +70,7 @@ spec = do
     it "should fail to replace an element from an array if the index is out of bounds" $ do
       let op = Operation (Replace "new-elem3") (OperationPath [ArraySegment $ NumIndex 3])
           doc = Array $ V.fromList ["elem1", "elem2"]
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (IndexOutOfBounds 3 doc)
 
     it "should remove an element at the given index in an array" $ do
       let op = Operation Remove (OperationPath [ArraySegment $ NumIndex 1])
@@ -75,7 +80,7 @@ spec = do
     it "should fail to remove an element from an array if the index is out of bounds" $ do
       let op = Operation Remove (OperationPath [ArraySegment $ NumIndex 3])
           doc = Array $ V.fromList ["elem1", "elem2"]
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (IndexOutOfBounds 3 doc)
 
     it "should insert an element before a given index in an array" $ do
       let op = Operation (Replace "elem1.5") (OperationPath [ArraySegment $ BeforeIndex 1])
@@ -93,10 +98,11 @@ spec = do
       applyOp doc op `shouldBe` Right (Array $ V.fromList ["elem1", "elem2", "elem2.5"])
 
     it "should fail if a path segment follows insertion only path segment" $ do
-      let opF seg = Operation (Replace "elem1.5") (OperationPath [seg, ArraySegment $ NumIndex 1])
+      let extraSeg = ArraySegment $ NumIndex 1
+          opF seg = Operation (Replace "elem1.5") (OperationPath [seg, extraSeg])
           doc = Array $ V.fromList ["elem1", "elem2"]
-      applyOp doc (opF $ ArraySegment $ BeforeIndex 2) `shouldBe` Left OperationErr
-      applyOp doc (opF $ ArraySegment LastIndex)       `shouldBe` Left OperationErr
+      applyOp doc (opF $ ArraySegment $ BeforeIndex 2) `shouldBe` Left (ExtraSegments (BeforeIndex 2) [extraSeg])
+      applyOp doc (opF $ ArraySegment LastIndex)       `shouldBe` Left (ExtraSegments LastIndex [extraSeg])
 
     it "should replace an element of a map inside an array" $ do
       let opF index =  Operation (Replace "new-value") (OperationPath [ArraySegment index, mandatorySegment "key"])
@@ -115,7 +121,7 @@ spec = do
     xit "should not insert an element before the last index+1+n in an array" $ do
       let op = Operation (Replace "elem3.5") (OperationPath [ArraySegment $ BeforeIndex 4])
           doc = Array $ V.fromList ["elem1", "elem2"]
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (IndexOutOfBounds 4 doc)
 
     it "should replace an element map by property matcher" $ do
       let op = Operation (Replace (object ["name" .= "new-elem2"])) (OperationPath [ArraySegment $ MapMatcher "name" "elem2"])
@@ -130,19 +136,25 @@ spec = do
     it "should fail to replace if property matcher matches more than one property " $ do
       let op = Operation (Replace (object ["name" .= "new-elem"])) (OperationPath [ArraySegment $ MapMatcher "name" "elem"])
           doc = array [object ["name" .= "elem"], object ["name" .= "elem"], "foo"]
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (MapMatcherError "name" "elem" doc)
 
     it "should fail to replace if property matcher matches no maps" $ do
       let op = Operation (Replace (object ["name" .= "new-elem"])) (OperationPath [ArraySegment $ MapMatcher "name" "not-elem"])
           doc = array [object ["name" .= "elem"], object ["name" .= "elem"], "foo"]
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (MapMatcherError "name" "not-elem" doc)
 
     it "should fail to delete if property matcher matches more than one property " $ do
       let op = Operation Remove (OperationPath [ArraySegment $ MapMatcher "name" "elem"])
           doc = array [object ["name" .= "elem"], object ["name" .= "elem"], "foo"]
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (MapMatcherError "name" "elem" doc)
 
     it "should fail to delete if property matcher matches no maps" $ do
       let op = Operation Remove (OperationPath [ArraySegment $ MapMatcher "name" "not-elem"])
           doc = array [object ["name" .= "elem"], object ["name" .= "elem"], "foo"]
-      applyOp doc op `shouldBe` Left OperationErr
+      applyOp doc op `shouldBe` Left (MapMatcherError "name" "not-elem" doc)
+
+    it "should be able to add new keys in an object" $ do
+      let op = Operation (Replace "value2") (OperationPath [optionalSegment "key2"])
+          doc = object ["key1" .= "value1"]
+      applyOp doc op `shouldBe` Right (object ["key1" .= "value1", "key2" .= "value2"])
+

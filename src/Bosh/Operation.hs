@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 module Bosh.Operation where
 
@@ -29,31 +30,31 @@ replaceOp doc (OperationPath path) r = replaceOp' doc r path
 
 replaceOp' :: Value -> Value -> [PathSegment] -> Either OperationErr Value
 replaceOp' _ r [] = return r
-replaceOp' (Object o) r path@(MapSegment key _:rem) =
+replaceOp' (Object o) r path@(seg@(MapSegment key _):rem) =
   if member key o
      then replaceOpKeyPresent o r key rem
-     else replaceOpKeyAbsent o r path
+     else replaceOpKeyAbsent o r seg rem
 -- Addition to array operations
 replaceOp' (Array a) r [ArraySegment LastIndex]       = return $ Array $ V.snoc a r
 replaceOp' (Array a) r [ArraySegment (BeforeIndex i)] = return $ Array $ insertAt i r a
+replaceOp' (Array a) r (ArraySegment seg@(BeforeIndex i):rem) = Left $ ExtraSegments seg rem
+replaceOp' (Array a) r (ArraySegment seg@LastIndex:rem)       = Left $ ExtraSegments seg rem
 -- Replacement in array operations
-replaceOp' (Array a) r (ArraySegment (NumIndex i):rem)     = replaceInArray a r rem $ (i,) <$> (V.!?) a i
-replaceOp' (Array a) r (ArraySegment (MapMatcher k v):rem) = replaceInArray a r rem $ lookupForObject a k v
--- Error cases like
--- - arrays with map segment
--- - objects with array segment
--- - extra segments after an addition only segment
--- TODO: Descriptive errors
-replaceOp' _ _ (_:_) = Left OperationErr
+replaceOp' (Array a) r (ArraySegment (NumIndex i):rem)  =
+  replaceInArray a r rem (IndexOutOfBounds i (Array a)) $ (i,) <$> (V.!?) a i
+replaceOp' (Array a) r (ArraySegment (MapMatcher k v):rem) =
+  replaceInArray a r rem (MapMatcherError k v (Array a)) $ lookupForObject a k v
+replaceOp' o _ (seg:_) = Left $ TypeMismatch seg o
 
 replaceInArray :: V.Vector Value -> Value -> [PathSegment]
+               -> OperationErr
                -> Maybe (Int, Value) -- Maybe (ReplaceHere, ReplaceInThisValue)
                -> Either OperationErr Value
-replaceInArray _ _ _ Nothing = Left OperationErr
-replaceInArray a r rem (Just (i, f)) = do
+replaceInArray _ _ _ err Nothing = Left err
+replaceInArray a r rem _ (Just (i, f)) = do
       x <- replaceOp' f r rem
       case x of
-        Null -> Array <$> deleteNth i a
+        Null -> return $ Array $ deleteNth i a
         _ -> return $ Array $ V.update a (V.fromList [(i, x)])
 
 lookupForObject :: V.Vector Value -> Text -> Text -> Maybe (Int, Value)
@@ -69,11 +70,9 @@ hasKeyValuePair key value (Object x) = case Map.lookup key x of
                                 Just _ -> False
 hasKeyValuePair _ _ _ = False
 
-deleteNth :: Int -> V.Vector a -> Either OperationErr (V.Vector a)
-deleteNth n xs = if V.length xs >= n
-                    then let (ys,zs) = V.splitAt n xs
-                          in Right (V.concat [ys, V.tail zs])
-                    else Left OperationErr
+deleteNth :: Int -> V.Vector a -> V.Vector a
+deleteNth n xs = let (ys,zs) = V.splitAt n xs
+                  in V.concat [ys, V.tail zs]
 
 insertAt :: Int -> a -> V.Vector a -> V.Vector a
 insertAt n x xs = let (ys, zs) = V.splitAt n xs in V.concat [ys, V.fromList [x], zs]
@@ -85,15 +84,14 @@ replaceOpKeyPresent o r key rem = do
     Null   -> return $ Object $ delete key o
     newVal -> return $ Object $ insert key newVal o
 
-replaceOpKeyAbsent :: HashMap Text Value -> Value -> [PathSegment] -> Either OperationErr Value
-replaceOpKeyAbsent _ _ [] = Left OperationErr
-replaceOpKeyAbsent o r path@(seg:rem) =
+replaceOpKeyAbsent :: HashMap Text Value -> Value -> PathSegment -> [PathSegment] -> Either OperationErr Value
+replaceOpKeyAbsent o r seg rem =
   if isOptional seg
     then
       if r == Null
          then return (Object o)
-         else return $ createObject r path
-    else Left OperationErr
+         else return $ Object $ insert (segment seg) (createObject r rem) o
+    else Left $ MandatoryKeyNotFound (segment seg) (Object o)
 
 createObject :: Value -> [PathSegment] -> Value
 createObject v (p:ps) = Object $ Map.singleton (segment p) $ createObject v ps
