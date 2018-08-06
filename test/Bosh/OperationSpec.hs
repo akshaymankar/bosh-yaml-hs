@@ -108,13 +108,13 @@ spec = do
       let opF index =  Operation (Replace "new-value") (OperationPath [ArraySegment index, mandatorySegment "key"])
           doc = array [object ["key" .= "value"], object["key" .= "value1"]]
       applyOp doc (opF $ NumIndex 0)               `shouldBe` Right (array [object ["key" .= "new-value"], object["key" .= "value1"]])
-      applyOp doc (opF $ MapMatcher "key" "value") `shouldBe` Right (array [object ["key" .= "new-value"], object["key" .= "value1"]])
+      applyOp doc (opF $ MapMatcher "key" "value" False) `shouldBe` Right (array [object ["key" .= "new-value"], object["key" .= "value1"]])
 
     it "should remove an element of a map insdie an array" $ do
       let opF index =  Operation Remove (OperationPath [ArraySegment index, mandatorySegment "key"])
           doc = array [object ["key" .= "value", "foo" .= "bar"], object["key" .= "value1", "foo" .= "bar1"]]
       applyOp doc (opF $ NumIndex 0)               `shouldBe` Right (array [object ["foo" .= "bar"], object["key" .= "value1", "foo" .= "bar1"]])
-      applyOp doc (opF $ MapMatcher "key" "value") `shouldBe` Right (array [object ["foo" .= "bar"], object["key" .= "value1", "foo" .= "bar1"]])
+      applyOp doc (opF $ MapMatcher "key" "value" False) `shouldBe` Right (array [object ["foo" .= "bar"], object["key" .= "value1", "foo" .= "bar1"]])
 
     -- This case is not handled
     -- elem 3.5 just appears after elem2
@@ -124,32 +124,45 @@ spec = do
       applyOp doc op `shouldBe` Left (IndexOutOfBounds 4 doc)
 
     it "should replace an element map by property matcher" $ do
-      let op = Operation (Replace (object ["name" .= "new-elem2"])) (OperationPath [ArraySegment $ MapMatcher "name" "elem2"])
+      let op = Operation (Replace (object ["name" .= "new-elem2"])) (OperationPath [ArraySegment $ MapMatcher "name" "elem2" False])
           doc = array [object ["name" .= "elem1"], object ["name" .= "elem2"], "foo"]
       applyOp doc op `shouldBe` Right (array [object ["name" .= "elem1"], object ["name" .= "new-elem2"], "foo"])
 
+    it "should add an element map by property matcher" $ do
+      let op = Operation (Replace (object ["name" .= "new-elem2"])) (OperationPath [ArraySegment $ MapMatcher "name" "elem2" True])
+          doc = array [object ["name" .= "elem1"], "foo"]
+      applyOp doc op `shouldBe` Right (array [object ["name" .= "elem1"], "foo", object ["name" .= "new-elem2"]])
+
+    it "should fail to add an element map by property matcher if there are extra segments" $ do
+      let index = MapMatcher "name" "elem2" True
+          extraSeg = mandatorySegment "foo"
+          op = Operation (Replace (object ["name" .= "new-elem2"])) (OperationPath [ ArraySegment index, extraSeg])
+          doc = array [object ["name" .= "elem1"], "foo"]
+      applyOp doc op `shouldBe` Left (ExtraSegments index [extraSeg])
+
+
     it "should delete an element map by property matcher" $ do
-      let op = Operation Remove (OperationPath [ArraySegment $ MapMatcher "name" "elem2"])
+      let op = Operation Remove (OperationPath [ArraySegment $ MapMatcher "name" "elem2" False])
           doc = array [object ["name" .= "elem1"], object ["name" .= "elem2"], "foo"]
       applyOp doc op `shouldBe` Right (array [object ["name" .= "elem1"], "foo"])
 
     it "should fail to replace if property matcher matches more than one property " $ do
-      let op = Operation (Replace (object ["name" .= "new-elem"])) (OperationPath [ArraySegment $ MapMatcher "name" "elem"])
+      let op = Operation (Replace (object ["name" .= "new-elem"])) (OperationPath [ArraySegment $ MapMatcher "name" "elem" False])
           doc = array [object ["name" .= "elem"], object ["name" .= "elem"], "foo"]
       applyOp doc op `shouldBe` Left (MapMatcherError "name" "elem" doc)
 
     it "should fail to replace if property matcher matches no maps" $ do
-      let op = Operation (Replace (object ["name" .= "new-elem"])) (OperationPath [ArraySegment $ MapMatcher "name" "not-elem"])
+      let op = Operation (Replace (object ["name" .= "new-elem"])) (OperationPath [ArraySegment $ MapMatcher "name" "not-elem" False])
           doc = array [object ["name" .= "elem"], object ["name" .= "elem"], "foo"]
       applyOp doc op `shouldBe` Left (MapMatcherError "name" "not-elem" doc)
 
     it "should fail to delete if property matcher matches more than one property " $ do
-      let op = Operation Remove (OperationPath [ArraySegment $ MapMatcher "name" "elem"])
+      let op = Operation Remove (OperationPath [ArraySegment $ MapMatcher "name" "elem" False])
           doc = array [object ["name" .= "elem"], object ["name" .= "elem"], "foo"]
       applyOp doc op `shouldBe` Left (MapMatcherError "name" "elem" doc)
 
     it "should fail to delete if property matcher matches no maps" $ do
-      let op = Operation Remove (OperationPath [ArraySegment $ MapMatcher "name" "not-elem"])
+      let op = Operation Remove (OperationPath [ArraySegment $ MapMatcher "name" "not-elem" False])
           doc = array [object ["name" .= "elem"], object ["name" .= "elem"], "foo"]
       applyOp doc op `shouldBe` Left (MapMatcherError "name" "not-elem" doc)
 

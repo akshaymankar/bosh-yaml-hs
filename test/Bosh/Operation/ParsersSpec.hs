@@ -54,7 +54,10 @@ spec = do
         -- ("/2prev?lol" :: Text) ~> segmentParser `shouldParse` mandatorySegment "2prev?lol"
 
       it "should parse MapMatcher in an array segment" $ do
-        ("/name=foo" :: Text) ~> segmentParser `shouldParse` ArraySegment (MapMatcher "name" "foo")
+        ("/name=foo" :: Text) ~> segmentParser `shouldParse` ArraySegment (MapMatcher "name" "foo" False)
+
+      it "should parse optional MapMatcher in an array segment" $ do
+        ("/name=foo?" :: Text) ~> segmentParser `shouldParse` ArraySegment (MapMatcher "name" "foo" True)
 
     context "pathParser" $ do
       it "should parse a path with 1 segment" $ do

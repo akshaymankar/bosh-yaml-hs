@@ -42,8 +42,16 @@ replaceOp' (Array a) r (ArraySegment seg@LastIndex:rem)       = Left $ ExtraSegm
 -- Replacement in array operations
 replaceOp' (Array a) r (ArraySegment (NumIndex i):rem)  =
   replaceInArray a r rem (IndexOutOfBounds i (Array a)) $ (i,) <$> (V.!?) a i
-replaceOp' (Array a) r (ArraySegment (MapMatcher k v):rem) =
-  replaceInArray a r rem (MapMatcherError k v (Array a)) $ lookupForObject a k v
+replaceOp' (Array a) r (ArraySegment (MapMatcher k v optional):rem) =
+  let x = lookupForObject a k v
+   in case x of
+        Nothing -> if optional
+                      then if Prelude.null rem
+                              then return $ Array $ V.snoc a r
+                              else Left $ ExtraSegments (MapMatcher k v optional) rem
+                      else Left $ MapMatcherError k v (Array a)
+        j -> replaceInArray a r rem (MapMatcherError k v (Array a)) j
+-- TypeMismatch
 replaceOp' o _ (seg:_) = Left $ TypeMismatch seg o
 
 replaceInArray :: V.Vector Value -> Value -> [PathSegment]

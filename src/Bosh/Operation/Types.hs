@@ -21,7 +21,7 @@ newtype OperationPath = OperationPath [PathSegment]
 data ArrayIndex = NumIndex Int
                 | LastIndex
                 | BeforeIndex Int
-                | MapMatcher Text Text
+                | MapMatcher Text Text Bool
   deriving (Show, Eq, Generic)
 
 data PathSegment = MapSegment { segment :: Text, isOptional :: Bool }

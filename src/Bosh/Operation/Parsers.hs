@@ -46,8 +46,13 @@ mapMatcherParser :: AT.Parser ArrayIndex
 mapMatcherParser = do
   key <- AT.takeWhile1 (AT.notInClass "=/")
   _ <- AT.char '='
-  value <- AT.takeWhile1 (AT.notInClass "/")
-  return $ MapMatcher key value
+  value <- AT.takeWhile1 (AT.notInClass "?/")
+  maybeChar  <- AT.peekChar
+  case maybeChar of
+    Just '?' -> do
+      _ <- AT.char '?'
+      return $ MapMatcher key value True
+    _ -> return $ MapMatcher key value False
 
 simpleIndexMatcher :: AT.Parser ArrayIndex
 simpleIndexMatcher = NumIndex <$> AT.decimal
