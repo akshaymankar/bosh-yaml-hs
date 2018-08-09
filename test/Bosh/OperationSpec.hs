@@ -171,3 +171,8 @@ spec = do
           doc = object ["key1" .= "value1"]
       applyOp doc op `shouldBe` Right (object ["key1" .= "value1", "key2" .= "value2"])
 
+    it "should be able to add array in a newly created object" $ do
+      let op = Operation (Replace "value2") (OperationPath [optionalSegment "key2", ArraySegment $ LastIndex])
+          doc = object ["key1" .= "value1"]
+      applyOp doc op `shouldBe` Right (object ["key1" .= "value1", "key2" .= array ["value2"]])
+

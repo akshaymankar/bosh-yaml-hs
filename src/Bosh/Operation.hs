@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ExtendedDefaultRules #-}
 {-# LANGUAGE TupleSections #-}
 module Bosh.Operation where
 
@@ -30,10 +31,10 @@ replaceOp doc (OperationPath path) r = replaceOp' doc r path
 
 replaceOp' :: Value -> Value -> [PathSegment] -> Either OperationErr Value
 replaceOp' _ r [] = return r
-replaceOp' (Object o) r path@(seg@(MapSegment key _):rem) =
+replaceOp' (Object o) r path@(seg@(MapSegment key optional):rem) =
   if member key o
      then replaceOpKeyPresent o r key rem
-     else replaceOpKeyAbsent o r seg rem
+     else replaceOpKeyAbsent o r key optional rem
 -- Addition to array operations
 replaceOp' (Array a) r [ArraySegment LastIndex]       = return $ Array $ V.snoc a r
 replaceOp' (Array a) r [ArraySegment (BeforeIndex i)] = return $ Array $ insertAt i r a
@@ -92,15 +93,16 @@ replaceOpKeyPresent o r key rem = do
     Null   -> return $ Object $ delete key o
     newVal -> return $ Object $ insert key newVal o
 
-replaceOpKeyAbsent :: HashMap Text Value -> Value -> PathSegment -> [PathSegment] -> Either OperationErr Value
-replaceOpKeyAbsent o r seg rem =
-  if isOptional seg
+replaceOpKeyAbsent :: HashMap Text Value -> Value -> Text -> Bool -> [PathSegment] -> Either OperationErr Value
+replaceOpKeyAbsent o r seg isOptional rem =
+  if isOptional
     then
       if r == Null
          then return (Object o)
-         else return $ Object $ insert (segment seg) (createObject r rem) o
-    else Left $ MandatoryKeyNotFound (segment seg) (Object o)
+         else return $ Object $ insert seg (createObject r rem) o
+    else Left $ MandatoryKeyNotFound seg (Object o)
 
 createObject :: Value -> [PathSegment] -> Value
-createObject v (p:ps) = Object $ Map.singleton (segment p) $ createObject v ps
+createObject v (MapSegment key _:ps) = Object $ Map.singleton key $ createObject v ps
 createObject v [] = v
+createObject v [ArraySegment LastIndex] = array [ v ]
