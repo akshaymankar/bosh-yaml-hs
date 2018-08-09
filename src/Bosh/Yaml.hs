@@ -3,7 +3,7 @@ module Bosh.Yaml where
 import Bosh.Interpolation
 import Bosh.Operation
 import Bosh.Operation.Types
-import Control.Monad ((>=>))
+import Control.Monad ((<=<))
 import Data.HashMap.Strict
 import Data.Text
 import Data.Yaml
@@ -23,4 +23,4 @@ wrapOpErr (Right r) = Right r
 operate :: FilePath -> [Operation] -> HashMap Text Text -> IO (Either BoshErr Value)
 operate f ops vars = do
   doc <- wrapParseException <$> decodeFileEither f
-  return $ (wrapOpErr . (flip interpolate vars >=> applyOps ops)) =<< doc
+  return $ (wrapOpErr . (flip interpolate vars <=< applyOps ops)) =<< doc
