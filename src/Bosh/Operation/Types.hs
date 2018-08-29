@@ -33,6 +33,7 @@ data OperationErr = MandatoryKeyNotFound Text Value -- expected `key` to be pres
                   | IndexOutOfBounds Int Value -- expected `index` to be in `doc`
                   | ExtraSegments ArrayIndex [PathSegment] -- expected `index` to be followed by nothing, but found `segments`
                   | MapMatcherError Text Text Value -- expected to find exactly one `key`=`value` in `doc`
+                  | UnexpectedSegment PathSegment -- unexpected segment due to reason
   deriving Eq
 
 instance Show OperationErr where
@@ -44,6 +45,7 @@ showOperationErr (TypeMismatch seg doc) = "TypeMismatch segment = " ++ show seg 
 showOperationErr (IndexOutOfBounds i doc) = "IndexOutOfBounds index = '" ++ show i ++ ", doc =\n" ++ toString doc
 showOperationErr (ExtraSegments i segs) = "ExtraSegments index = " ++ show i ++ ", extra segments = " ++ show segs
 showOperationErr (MapMatcherError key value doc) = "MapMatcherError key = '" ++ unpack key ++ "', value = '" ++ unpack value ++ "', doc =\n" ++ toString doc
+showOperationErr (UnexpectedSegment seg) = "UnexpectedSegment '" ++ show seg ++ "'"
 
 toString :: Value -> String
 toString val = B.unpack $ encode val

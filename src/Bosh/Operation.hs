@@ -99,10 +99,13 @@ replaceOpKeyAbsent o r seg isOptional rem =
     then
       if r == Null
          then return (Object o)
-         else return $ Object $ insert seg (createObject r rem) o
+         else do
+           x <- createObject r rem
+           return $ Object $ insert seg x o
     else Left $ MandatoryKeyNotFound seg (Object o)
 
-createObject :: Value -> [PathSegment] -> Value
-createObject v (MapSegment key _:ps) = Object $ Map.singleton key $ createObject v ps
-createObject v [] = v
-createObject v [ArraySegment LastIndex] = array [ v ]
+createObject :: Value -> [PathSegment] -> Either OperationErr Value
+createObject v (MapSegment key _:ps) = Object . Map.singleton key <$> createObject v ps
+createObject v [] = return v
+createObject v [ArraySegment LastIndex] = return $ array [ v ]
+createObject _ (seg:_) = Left $ UnexpectedSegment seg
