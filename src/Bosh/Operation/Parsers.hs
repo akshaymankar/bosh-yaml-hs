@@ -8,6 +8,7 @@ import Data.Functor
 import Data.Text
 import Data.Yaml
 import qualified Data.Attoparsec.Text as AT
+import qualified Data.Vector as V
 
 instance FromJSON OperationType where
   parseJSON (Object v) = do
@@ -22,6 +23,10 @@ instance FromJSON Operation where
                        <$> parseJSON (Object v)
                        <*> v .: "path"
   parseJSON invalid = typeMismatch "Operation" invalid
+
+  parseJSONList Null = return []
+  parseJSONList (Array a) = mapM parseJSON (V.toList a)
+  parseJSONList v = typeMismatch "[a]" v
 
 instance FromJSON OperationPath where
   parseJSON (String s) = case AT.parseOnly pathParser s of

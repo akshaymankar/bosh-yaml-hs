@@ -80,7 +80,15 @@ spec = do
                                                                                 ]
 
     context "FromJSON" $ do
-      it "should be able to parse JSON string" $ do
+      it "should be able to parse string" $ do
         case decodeEither' "/key/key2" of
-          (Right o) ->  o `shouldBe` OperationPath [mandatorySegment "key", mandatorySegment "key2"]
+          (Right o) -> o `shouldBe` OperationPath [mandatorySegment "key", mandatorySegment "key2"]
+          (Left e) -> expectationFailure $ "Decoding failed with error: " ++ show e
+      it "should be able to parse list of operations" $ do
+        case decodeEither' "- type: remove\n  path: /foo" of
+          (Right o) -> o `shouldBe` [Operation Remove $ OperationPath [mandatorySegment "foo"]]
+          (Left e) -> expectationFailure $ "Decoding failed with error: " ++ show e
+      it "should be able to parse empty file into empty list of operations" $ do
+        case decodeEither' "" of
+          (Right o) -> o `shouldBe` ([] :: [Operation])
           (Left e) -> expectationFailure $ "Decoding failed with error: " ++ show e
