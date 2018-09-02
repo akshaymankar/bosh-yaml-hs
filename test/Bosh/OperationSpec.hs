@@ -179,4 +179,7 @@ spec = do
       let op = Operation (Replace "value2") (OperationPath [optionalSegment "key2", ArraySegment $ NumIndex 0])
           doc = object ["key1" .= "value1"]
       applyOp doc op `shouldBe` Left (UnexpectedSegment $ ArraySegment $ NumIndex 0)
-
+    it "should add an element to array inside an array" $ do
+      let op = Operation (Replace "elem2") (OperationPath [ArraySegment $ NumIndex 0, ArraySegment LastIndex])
+          doc = array [array ["elem1"]]
+      applyOp doc op `shouldBe` Right (array [array ["elem1", "elem2"]])

@@ -11,13 +11,9 @@ import Bosh.Read
 import Data.Attoparsec.Text
 import Data.Text as T
 import Data.Yaml
+import Helpers
 
 {-# ANN module ("HLint: ignore Redundant do"::String) #-}
-
-readQuery :: Text -> [PathSegment]
-readQuery t = case parseOnly (pathParser <* endOfInput) t of
-                Right (OperationPath ps) -> ps
-                Left e -> error ("Parser failed to parse: " ++ T.unpack t ++ " Error: " ++ e)
 
 spec :: Spec
 spec = do

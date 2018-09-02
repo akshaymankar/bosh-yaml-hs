@@ -65,6 +65,7 @@ spec = do
 
       it "should parse a path with many segments" $ do
         ("/key/key2" :: Text) ~> pathParser `shouldParse` OperationPath [mandatorySegment "key", mandatorySegment "key2"]
+        ("/0/0/key" :: Text) ~> pathParser `shouldParse` OperationPath [ArraySegment $ NumIndex 0, ArraySegment $ NumIndex 0, mandatorySegment "key"]
 
       it "should apply optionality to all segments after first optional segment" $ do
         ("/key/key2?/key3/key4" :: Text) ~> pathParser `shouldParse` OperationPath [ mandatorySegment "key"
