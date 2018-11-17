@@ -30,6 +30,9 @@ dependencies:
 - unordered-containers
 - vector
 - yaml
+- optparse-applicative
+- optparse-text
+- optparse-simple
 
 library:
   source-dirs: src
